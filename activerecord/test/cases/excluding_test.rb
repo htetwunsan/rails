@@ -46,7 +46,7 @@ class ExcludingTest < ActiveRecord::TestCase
   def test_result_set_does_not_include_collection_of_excluded_records_and_queries
     thinking = posts(:thinking)
 
-    records = assert_queries_count 2 do
+    records = assert_queries_count 1 do
       Post.excluding(@post, Post.where(id: thinking)).to_a
     end
 
@@ -109,23 +109,27 @@ class ExcludingTest < ActiveRecord::TestCase
     assert_equal "You must only pass a single or collection of Post objects to #without.", error.message
   end
 
-  def test_result_set_does_not_include_excluded_records_for_a_composite_primary_key_model
-    excluded = cpk_books(:cpk_great_author_first_book)
-    other = cpk_books(:cpk_great_author_second_book)
-    relation = Cpk::Book.where(author_id: excluded.author_id).excluding(excluded)
+  def test_result_set_does_not_include_excluded_records_and_queries_for_a_composite_primary_key_model
+    excluded, other = cpk_books(:cpk_great_author_first_book, :cpk_great_author_second_book)
 
-    assert_not_includes relation, excluded
-    assert_includes relation, other
+    records = assert_queries_count 1 do
+      Cpk::Book.where(author_id: excluded.author_id).excluding(excluded).to_a
+    end
+
+    assert_not_includes records, excluded
+    assert_includes records, other
   end
 
-  def test_result_set_does_not_include_excluded_records_from_a_query_for_a_composite_primary_key_model
-    excluded = cpk_books(:cpk_great_author_first_book)
-    other = cpk_books(:cpk_great_author_second_book)
+  def test_result_set_does_not_include_excluded_records_and_queries_from_a_query_for_a_composite_primary_key_model
+    excluded, other = cpk_books(:cpk_great_author_first_book, :cpk_great_author_second_book)
     query = Cpk::Book.where(id: excluded.id)
-    relation = Cpk::Book.where(author_id: excluded.author_id).excluding(query)
 
-    assert_not_includes relation, excluded
-    assert_includes relation, other
+    records = assert_queries_count 2 do
+      Cpk::Book.where(author_id: excluded.author_id).excluding(query).to_a
+    end
+
+    assert_not_includes records, excluded
+    assert_includes records, other
   end
 
   private

@@ -1665,13 +1665,23 @@ module ActiveRecord
         raise ArgumentError, "You must only pass a single or collection of #{model.name} objects to ##{__callee__}."
       end
 
-      spawn.excluding!(records + relations.flat_map(&:ids))
+      spawn.excluding!(records, relations)
     end
     alias :without :excluding
 
-    def excluding!(records) # :nodoc:
-      ids = records.map { |record| record.is_a?(model) ? record.id : record }
-      self.where_clause += build_where_clause(primary_key => ids).invert
+    def excluding!(records, relations) # :nodoc:
+      if model.composite_primary_key?
+        ids = records.map(&:id) + relations.flat_map(&:ids)
+
+        self.where_clause += build_where_clause(primary_key => ids).invert
+      else
+        initial_where_clause = build_where_clause(primary_key => records)
+
+        self.where_clause += relations.inject initial_where_clause do |where_clause, relation|
+          where_clause.or(build_where_clause(primary_key => relation))
+        end.invert
+      end
+
       self
     end
 
